@@ -142,7 +142,7 @@ class DropData {
     return () => {
       fs.writeFileSync(localeVersionPath, this._version);
 
-      return this._write;
+      return this._write();
     };
   }
 
