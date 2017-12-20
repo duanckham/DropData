@@ -30,6 +30,7 @@ class DropData {
     // Read locale file.
     if (fs.existsSync(localeFilePath)) {
       localeFileExisted = true;
+      this._version = parseInt(fs.readFileSync(localeVersionPath));
     }
 
     // Read remote file.
