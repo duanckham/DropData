@@ -1,5 +1,4 @@
 const fs = require('fs');
-const moment = require('moment');
 const low = require('lowdb');
 const Dropbox = require('dropbox');
 const FileSync = require('lowdb/adapters/FileSync');
