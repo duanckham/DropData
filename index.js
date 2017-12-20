@@ -136,13 +136,13 @@ class DropData {
     let { path, name } = this._options;
     let localeVersionPath = `${path}/${name}.version`;
 
-    this._version++;
     this._write = this.db.write.bind(this.db);
 
     return () => {
-      fs.writeFileSync(localeVersionPath, this._version);
+      this._version++;
+      this._write();
 
-      return this._write();
+      fs.writeFileSync(localeVersionPath, this._version);
     };
   }
 
