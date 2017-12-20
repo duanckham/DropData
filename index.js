@@ -6,9 +6,7 @@ const FileSync = require('lowdb/adapters/FileSync');
 
 class DropData {
   constructor(options) {
-    // this.adapter = new FileSync(`${options.path}/${options.name}.json`);
-    // this.db = low(this.adapter);
-
+    this._version = 0;
     this._options = options;
     this._dbx = new Dropbox({
       accessToken: options.accessToken
@@ -17,7 +15,8 @@ class DropData {
     this.looper();
   }
 
-  async sync(path, name) {
+  async sync() {
+    let { path, name } = this._options;
     let localeFilePath = `${path}/${name}.json`;
     let localeVersionPath = `${path}/${name}.version`;
 
@@ -60,47 +59,50 @@ class DropData {
         }
 
         if (localeFileVersion > remoteFileVersion) {
-          await this.syncToRemote(path, name);
+          await this.syncToRemote();
         } else if (localeFileVersion < remoteFileVersion) {
-          await this.syncFromRemote(path, name);
+          await this.syncFromRemote();
         }
       } else {
         // Upload to remote.
-        await this.syncToRemote(path, name);
+        await this.syncToRemote();
       }
     } else {
       if (remoteFileExisted) {
         // Download to locale.
-        await this.syncFromRemote(path, name);
+        await this.syncFromRemote();
       } else {
         // Create locale file and upload to remote.
-        await this.initDataFile(path, name);
+        await this.initDataFile();
       }
     }
   }
 
-  async syncFromRemote(path, name) {
+  async syncFromRemote() {
+    let { path, name } = this._options;
+
     // Download to locale.
-    let _fileDownloadRes = await this._dbx.filesDownload({ path: `/${this._options.name}.json` });
-    let _versionDownloadRes = await this._dbx.filesDownload({ path: `/${this._options.name}.version` });
+    let _fileDownloadRes = await this._dbx.filesDownload({ path: `/${name}.json` });
+    let _versionDownloadRes = await this._dbx.filesDownload({ path: `/${name}.version` });
+
+    // Update local version.
+    this._version = parseInt(_versionDownloadRes.fileBinary);
 
     // Yes, yes, yes.
     fs.writeFileSync(`/${path}/${name}.json`, _fileDownloadRes.fileBinary);
     fs.writeFileSync(`/${path}/${name}.version`, _versionDownloadRes.fileBinary);
   }
 
-  async syncToRemote(path, name) {
+  async syncToRemote() {
+    let { path, name } = this._options;
+
     // Delete remote files.
-    try {
-      await this._dbx.filesDeleteBatch({
-        entries: [
-          { path: `/${name}.json` },
-          { path: `/${name}.version` }
-        ]
-      });
-    } catch (error) {
-      console.log(error);
-    }
+    await this._dbx.filesDeleteBatch({
+      entries: [
+        { path: `/${name}.json` },
+        { path: `/${name}.version` }
+      ]
+    });
 
     // Upload.
     await this._dbx.filesUpload({
@@ -114,21 +116,46 @@ class DropData {
     });
   }
 
-  async initDataFile(path, name) {
+  async initDataFile() {
+    let { path, name } = this._options;
     let localeFilePath = `${path}/${name}.json`;
     let localeVersionPath = `${path}/${name}.version`;
 
+    // Update local version.
+    this._version = 1;
+
     // Create locale file.
     fs.writeFileSync(localeFilePath, JSON.stringify({}));
-    fs.writeFileSync(localeVersionPath, 1);
+    fs.writeFileSync(localeVersionPath, this._version);
 
     // Upload to remote.
-    await this.syncToRemote(path, name);
+    await this.syncToRemote();
+  }
+
+  bindWrite() {
+    let { path, name } = this._options;
+    let localeVersionPath = `${path}/${name}.version`;
+
+    this._version++;
+    this._write = this.db.write.bind(this.db);
+
+    return () => {
+      fs.writeFileSync(localeVersionPath, this._version);
+
+      return this._write;
+    };
   }
 
   looper() {
-    let _processer = () => {
-      this.sync(this._options.path, this._options.name);
+    let { path, name } = this._options;
+    let _processer = async () => {
+      await this.sync();
+
+      if (!this.adapter) {
+        this.adapter = new FileSync(`${path}/${name}.json`);
+        this.db = low(this.adapter);
+        this.db.write = this.bindWrite();
+      }
     };
 
     setInterval(_processer.bind(this), 20000);
@@ -138,10 +165,3 @@ class DropData {
 }
 
 module.exports = DropData;
-
-let dd = new DropData({
-  accessToken: '',
-  path: '/tmp',
-  name: 'yumonth-storage',
-  debug: true
-});
