@@ -1,6 +1,7 @@
 const fs = require('fs');
 const low = require('lowdb');
-const Dropbox = require('dropbox');
+const fetch = require('isomorphic-fetch');
+const { Dropbox } = require('dropbox');
 const FileSync = require('lowdb/adapters/FileSync');
 
 class DropData {
@@ -8,12 +9,13 @@ class DropData {
     this._version = 0;
     this._options = options;
     this._dbx = new Dropbox({
-      accessToken: options.accessToken
+      accessToken: options.accessToken,
+      fetch,
     });
 
     this._remotePaths = {
-      file: `${options.project}/${options.name}.json`,
-      version: `${options.project}/${options.name}.version`,
+      file: `/${options.project}/${options.name}.json`,
+      version: `/${options.project}/${options.name}.version`,
     };
 
     this.looper();
@@ -30,7 +32,7 @@ class DropData {
     let localeFileVersion = 0;
     let remoteFileVersion = 0;
 
-    let filesListFolderRes = await this._dbx.filesListFolder({ path: this._options.project });
+    let filesListFolderRes = await this._dbx.filesListFolder({ path: '/' + this._options.project });
 
     // Read locale file.
     if (fs.existsSync(localeFilePath)) {
@@ -105,7 +107,7 @@ class DropData {
     await this._dbx.filesDeleteBatch({
       entries: [
         { path: this._remotePaths.file },
-        { path: this._remotePaths.version }
+        { path: this._remotePaths.version },
       ]
     });
 
