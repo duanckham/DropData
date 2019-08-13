@@ -11,6 +11,11 @@ class DropData {
       accessToken: options.accessToken
     });
 
+    this._remotePaths = {
+      file: `${options.project}/${options.name}.json`,
+      version: `${options.project}/${options.name}.version`,
+    };
+
     this.looper();
   }
 
@@ -25,7 +30,7 @@ class DropData {
     let localeFileVersion = 0;
     let remoteFileVersion = 0;
 
-    let filesListFolderRes = await this._dbx.filesListFolder({ path: '' });
+    let filesListFolderRes = await this._dbx.filesListFolder({ path: this._options.project });
 
     // Read locale file.
     if (fs.existsSync(localeFilePath)) {
@@ -36,7 +41,7 @@ class DropData {
     // Read remote file.
     for (let i = filesListFolderRes.entries.length; i--;) {
       if (filesListFolderRes.entries[i].name === this._options.name + '.json') {
-        let _versionDownloadRes = await this._dbx.filesDownload({ path: `/${this._options.name}.version` });
+        let _versionDownloadRes = await this._dbx.filesDownload({ path: this._remotePaths.version });
 
         remoteFileExisted = true;
         remoteFileVersion = parseInt(_versionDownloadRes.fileBinary);
@@ -82,15 +87,15 @@ class DropData {
     let { path, name } = this._options;
 
     // Download to locale.
-    let _fileDownloadRes = await this._dbx.filesDownload({ path: `/${name}.json` });
-    let _versionDownloadRes = await this._dbx.filesDownload({ path: `/${name}.version` });
+    let _fileDownloadRes = await this._dbx.filesDownload({ path: this._remotePaths.file });
+    let _versionDownloadRes = await this._dbx.filesDownload({ path: this._remotePaths.version });
 
     // Update local version.
     this._version = parseInt(_versionDownloadRes.fileBinary);
 
     // Yes, yes, yes.
-    fs.writeFileSync(`/${path}/${name}.json`, _fileDownloadRes.fileBinary);
-    fs.writeFileSync(`/${path}/${name}.version`, _versionDownloadRes.fileBinary);
+    fs.writeFileSync(`${path}/${name}.json`, _fileDownloadRes.fileBinary);
+    fs.writeFileSync(`${path}/${name}.version`, _versionDownloadRes.fileBinary);
   }
 
   async syncToRemote() {
@@ -99,19 +104,19 @@ class DropData {
     // Delete remote files.
     await this._dbx.filesDeleteBatch({
       entries: [
-        { path: `/${name}.json` },
-        { path: `/${name}.version` }
+        { path: this._remotePaths.file },
+        { path: this._remotePaths.version }
       ]
     });
 
     // Upload.
     await this._dbx.filesUpload({
-      path: `/${name}.json`,
+      path: this._remotePaths.file,
       contents: fs.readFileSync(`${path}/${name}.json`)
     });
 
     await this._dbx.filesUpload({
-      path: `/${name}.version`,
+      path: this._remotePaths.version,
       contents: fs.readFileSync(`${path}/${name}.version`)
     });
   }

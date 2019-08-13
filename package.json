@@ -1,12 +1,12 @@
 {
   "name": "dropdata",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "",
   "repository": {},
   "author": "Duanckham",
   "license": "Apache-2.0",
   "dependencies": {
-    "dropbox": "^2.5.12",
+    "dropbox": "^4.0.30",
     "lowdb": "^1.0.0"
   }
 }
