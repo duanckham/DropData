@@ -14,5 +14,8 @@ const dd = new DropData({
   // debug: false,
 });
 
-// So you will get the lowdb object: dd.db
+// So you will get the lowdb object:
+dd.ready(db => {
+  // ...
+});
 ```

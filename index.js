@@ -6,6 +6,7 @@ const FileSync = require('lowdb/adapters/FileSync');
 
 class DropData {
   constructor(options) {
+    this._readyCallback;
     this._version = 0;
     this._options = options;
     this._dbx = new Dropbox({
@@ -187,19 +188,23 @@ class DropData {
 
   looper() {
     let { path, name } = this._options;
-    let _processer = async () => {
+    let processer = async () => {
       await this.sync();
 
       if (!this.adapter) {
         this.adapter = new FileSync(`${path}/${name}.json`);
         this.db = low(this.adapter);
         this.db.write = this.bindWrite();
+        this._readyCallback(this.db);
       }
     };
 
-    setInterval(_processer.bind(this), 20000);
+    setInterval(processer.bind(this), 20000);
+    processer();
+  }
 
-    _processer();
+  ready(callback) {
+    this._readyCallback = callback;
   }
 }
 
